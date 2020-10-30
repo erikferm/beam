@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -59,6 +60,25 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return errors.Wrap(err, "invalid pipeline")
 	}
+
+	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getLoopbackURL)
+	if err != nil {
+		return errors.WithContext(err, "generating model pipeline")
+	}
+
+	p1, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
+	if err != nil {
+		return errors.WithContext(err, "generating model pipeline")
+	}
+
+	log.Info(ctx, "Transform Ids")
+	log.Info(ctx, p1.RootTransformIds)
+	comp := p1.GetComponents()
+	for _, transformId := range p1.RootTransformIds {
+		transform := comp.Transforms[transformId]
+		log.Info(ctx, transform)
+	}
+
 	plan, err := Compile(edges)
 	if err != nil {
 		return errors.Wrap(err, "translation failed")
@@ -321,4 +341,8 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	b.links[id] = u
 	b.units = append(b.units, u)
 	return u, nil
+}
+
+func getLoopbackURL(ctx context.Context) string {
+	return "localhost:1234"
 }

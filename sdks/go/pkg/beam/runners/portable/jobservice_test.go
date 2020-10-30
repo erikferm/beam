@@ -15,40 +15,24 @@
 
 // Package direct contains the direct runner for running single-bundle
 // pipelines in the current process. Useful for testing.
-package direct
+package portable
 
 import (
 	"context"
 	"log"
-	"net"
 	"testing"
 
 	jman "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 )
 
-func dialer(context.Context, string) (net.Conn, error) {
-	listener := bufconn.Listen(1024 * 1024)
-	server := grpc.NewServer()
-
-	jman.RegisterJobServiceServer(server, &JobService{})
-	go func(listener *bufconn.Listener) {
-		if err := server.Serve(listener); err != nil {
-			log.Fatal(err)
-		}
-	}(listener)
-
-	return listener.Dial()
-}
-
 func TestPrepare(t *testing.T) {
-	ctx := context.Background()
-	conn, err := grpc.DialContext(ctx, "", grpc.WithInsecure(), grpc.WithContextDialer(dialer))
+	js := &JobService{Port: 4023}
+	go js.Start()
+	client, err := js.GetClient()
 	if err != nil {
 		log.Fatal(err)
 	}
-	client := jman.NewJobServiceClient(conn)
+	ctx := context.Background()
 	resp, err := client.Prepare(ctx, &jman.PrepareJobRequest{JobName: "testing"})
 	if err != nil {
 		log.Fatal(err)

@@ -67,6 +67,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	envUrn := jobopts.GetEnvironmentUrn(ctx)
 	getEnvCfg := jobopts.GetEnvironmentConfig
 
+	log.Info(ctx, *jobopts.EnvironmentType)
 	if jobopts.IsLoopback() {
 		// TODO(BEAM-10610): Allow user configuration of this port, rather than kernel selected.
 		srv, err := extworker.StartLoopback(ctx, 0)

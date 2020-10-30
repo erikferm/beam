@@ -15,23 +15,27 @@
 
 // Package direct contains the direct runner for running single-bundle
 // pipelines in the current process. Useful for testing.
-package direct
+package portable
 
 import (
 	"context"
+	"fmt"
+	"net"
 
 	jman "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"google.golang.org/grpc"
 )
 
 type JobService struct {
+	Endpoint string
 }
 
-func (j *JobService) Prepare(ctx context.Context, prepareRequest *jman.PrepareJobRequest) (*jman.PrepareJobResponse, error) {
+func (j *JobService) Prepare(ctx context.Context, req *jman.PrepareJobRequest) (*jman.PrepareJobResponse, error) {
 
 	return &jman.PrepareJobResponse{
-		PreparationId:           prepareRequest.JobName,
-		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: "localhost:4444"},
+		PreparationId:           req.JobName,
+		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: endpoint},
 		StagingSessionToken:     "token",
 	}, nil
 }
@@ -70,4 +74,23 @@ func (j *JobService) GetJobMetrics(context.Context, *jman.GetJobMetricsRequest) 
 
 func (j *JobService) DescribePipelineOptions(context.Context, *jman.DescribePipelineOptionsRequest) (*jman.DescribePipelineOptionsResponse, error) {
 	panic("not implemented")
+}
+
+func (j *JobService) Start() error {
+	lis, err := net.Listen("tcp", j.Endpoint)
+	if err != nil {
+		return err
+	}
+	server := grpc.NewServer()
+	jman.RegisterJobServiceServer(server, j)
+	return server.Serve(lis)
+}
+
+// GetClient is a convienience function for testing
+func (j *JobService) GetClient() (jman.JobServiceClient, error) {
+	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", j.Port), grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	return jman.NewJobServiceClient(conn), nil
 }
