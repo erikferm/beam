@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
 )
@@ -28,17 +29,24 @@ func init() {
 	beam.RegisterRunner("portable", Execute)
 }
 
+var (
+	defaultEndpoint = "localhost:4444"
+)
+
 // Execute runs the given pipeline on the portable runner. Convenience wrapper over the
 // universal runner.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
-	// Start a JobServiceServer
+
 	endpoint, err := jobopts.GetEndpoint()
 	if err != nil {
-		return err
+		log.Info(ctx, "No endpoint specified. Using deafult endpoint: ", defaultEndpoint)
+		endpoint = defaultEndpoint
+		jobopts.Endpoint = &endpoint
 	}
+
+	// Start a JobServiceServer
 	js := &JobService{Endpoint: endpoint}
 	go js.Start()
-	// Get a JobServiceClient
 
 	return universal.Execute(ctx, p)
 }
