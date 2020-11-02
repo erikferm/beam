@@ -25,11 +25,13 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec/optimized"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
+
 	// The imports here are for the side effect of runner registration.
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/portable"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
 )
