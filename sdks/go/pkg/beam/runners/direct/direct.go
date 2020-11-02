@@ -25,7 +25,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -59,24 +58,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	edges, _, err := p.Build()
 	if err != nil {
 		return errors.Wrap(err, "invalid pipeline")
-	}
-
-	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getLoopbackURL)
-	if err != nil {
-		return errors.WithContext(err, "generating model pipeline")
-	}
-
-	p1, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
-	if err != nil {
-		return errors.WithContext(err, "generating model pipeline")
-	}
-
-	log.Info(ctx, "Transform Ids")
-	log.Info(ctx, p1.RootTransformIds)
-	comp := p1.GetComponents()
-	for _, transformId := range p1.RootTransformIds {
-		transform := comp.Transforms[transformId]
-		log.Info(ctx, transform)
 	}
 
 	plan, err := Compile(edges)
