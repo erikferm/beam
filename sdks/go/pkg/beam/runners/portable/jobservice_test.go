@@ -20,15 +20,16 @@ package portable
 import (
 	"context"
 	"log"
+	"strings"
 	"testing"
 
 	jman "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 )
 
 func TestPrepare(t *testing.T) {
-	js := &JobService{Port: 4023}
-	go js.Start()
-	client, err := js.GetClient()
+	js := &JobService{Endpoint: "localhost:4023"}
+	_ = js.Start()
+	client, err := js.getClient()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +38,7 @@ func TestPrepare(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if resp.PreparationId != "testing" {
+	if !strings.HasPrefix(resp.PreparationId, "testing") {
 		t.Error("Unexpected preparation id: ", resp.PreparationId)
 	}
 }

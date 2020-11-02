@@ -12,31 +12,28 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Package direct contains the direct runner for running single-bundle
-// pipelines in the current process. Useful for testing.
 package portable
 
 import (
 	"context"
 	"fmt"
-	"net"
-
 	jman "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"net"
 )
 
 type JobService struct {
-	Endpoint string
+	Endpoint               string
 }
 
 func (j *JobService) Prepare(ctx context.Context, req *jman.PrepareJobRequest) (*jman.PrepareJobResponse, error) {
-
+	jobId := fmt.Sprintf("%s-%s", req.JobName, uuid.New())
 	return &jman.PrepareJobResponse{
-		PreparationId:           req.JobName,
-		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: endpoint},
-		StagingSessionToken:     "token",
+		PreparationId:           jobId,
+		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: "localhost:4445"},
+		StagingSessionToken:     jobId,
 	}, nil
 }
 
@@ -76,19 +73,26 @@ func (j *JobService) DescribePipelineOptions(context.Context, *jman.DescribePipe
 	panic("not implemented")
 }
 
-func (j *JobService) Start() error {
+func (j *JobService) Start() <-chan error {
+	out := make(chan error)
 	lis, err := net.Listen("tcp", j.Endpoint)
 	if err != nil {
-		return err
+		out <- err
+		return out
 	}
 	server := grpc.NewServer()
 	jman.RegisterJobServiceServer(server, j)
-	return server.Serve(lis)
+	go func(server *grpc.Server, lis net.Listener){
+		if err := server.Serve(lis); err != nil {
+			out <- err
+		}
+	}(server,lis)
+	return out
 }
 
 // GetClient is a convienience function for testing
-func (j *JobService) GetClient() (jman.JobServiceClient, error) {
-	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", j.Port), grpc.WithInsecure())
+func (j *JobService) getClient() (jman.JobServiceClient, error) {
+	conn, err := grpc.Dial(j.Endpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
