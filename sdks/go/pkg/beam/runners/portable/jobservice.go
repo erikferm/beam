@@ -25,13 +25,46 @@ import (
 	"net"
 )
 
+type BeamJob struct {
+	ID                     string
+	Pipeline               *pipeline.Pipeline
+	Options                []*pipeline.ArtifactInformation
+	ArtifactStagingService *ArtifactStagingService
+}
+
 type JobService struct {
 	Endpoint string
+	Jobs     map[string]*BeamJob
+}
+
+func NewJobService(endpoint string) *JobService {
+	return &JobService{
+		Endpoint: endpoint,
+		Jobs: make(map[string]*BeamJob),
+	}
+
+
 }
 
 func (j *JobService) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jobpb.PrepareJobResponse, error) {
 	jobId := fmt.Sprintf("%s-%s", req.JobName, uuid.New())
+
+	var options []*pipeline.ArtifactInformation
+
+	for _, env := range req.Pipeline.Components.Environments {
+		options = append(options, env.Dependencies...)
+	}
+
 	stagingToken := jobId
+	j.Jobs[jobId] = &BeamJob{
+		ID:                     jobId,
+		Pipeline:               req.Pipeline,
+		Options:                options,
+		ArtifactStagingService: NewArtifactStagingService(stagingToken),
+	}
+
+	log.Debug(ctx, "Created new job: ", j.Jobs[jobId])
+
 	return &jobpb.PrepareJobResponse{
 		PreparationId:           jobId,
 		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: "localhost:4445"},
