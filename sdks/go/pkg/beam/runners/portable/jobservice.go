@@ -17,7 +17,8 @@ package portable
 import (
 	"context"
 	"fmt"
-	jman "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -25,51 +26,54 @@ import (
 )
 
 type JobService struct {
-	Endpoint               string
+	Endpoint string
 }
 
-func (j *JobService) Prepare(ctx context.Context, req *jman.PrepareJobRequest) (*jman.PrepareJobResponse, error) {
+func (j *JobService) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jobpb.PrepareJobResponse, error) {
 	jobId := fmt.Sprintf("%s-%s", req.JobName, uuid.New())
-	return &jman.PrepareJobResponse{
+	stagingToken := jobId
+	return &jobpb.PrepareJobResponse{
 		PreparationId:           jobId,
 		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: "localhost:4445"},
-		StagingSessionToken:     jobId,
+		StagingSessionToken:     stagingToken,
 	}, nil
 }
 
-func (j *JobService) Run(context.Context, *jman.RunJobRequest) (*jman.RunJobResponse, error) {
+func (j *JobService) Run(context.Context, *jobpb.RunJobRequest) (*jobpb.RunJobResponse, error) {
 	panic("not implemented")
 }
 
-func (j *JobService) GetJobs(context.Context, *jman.GetJobsRequest) (*jman.GetJobsResponse, error) {
+func (j *JobService) GetJobs(context.Context, *jobpb.GetJobsRequest) (*jobpb.GetJobsResponse, error) {
 	panic("not implemented")
 }
 
-func (j *JobService) GetState(context.Context, *jman.GetJobStateRequest) (*jman.JobStateEvent, error) {
+func (j *JobService) GetState(context.Context, *jobpb.GetJobStateRequest) (*jobpb.JobStateEvent, error) {
 	panic("not implemented")
 }
 
-func (j *JobService) GetPipeline(context.Context, *jman.GetJobPipelineRequest) (*jman.GetJobPipelineResponse, error) {
+func (j *JobService) GetPipeline(context.Context, *jobpb.GetJobPipelineRequest) (*jobpb.GetJobPipelineResponse, error) {
 	panic("not implemented")
 }
 
-func (j *JobService) Cancel(context.Context, *jman.CancelJobRequest) (*jman.CancelJobResponse, error) {
+func (j *JobService) Cancel(context.Context, *jobpb.CancelJobRequest) (*jobpb.CancelJobResponse, error) {
 	panic("not implemented")
 }
 
-func (j *JobService) GetStateStream(*jman.GetJobStateRequest, jman.JobService_GetStateStreamServer) error {
+func (j *JobService) GetStateStream(*jobpb.GetJobStateRequest,
+	jobpb.JobService_GetStateStreamServer) error {
 	panic("not implemented")
 }
 
-func (j *JobService) GetMessageStream(*jman.JobMessagesRequest, jman.JobService_GetMessageStreamServer) error {
+func (j *JobService) GetMessageStream(*jobpb.JobMessagesRequest,
+	jobpb.JobService_GetMessageStreamServer) error {
 	panic("not implemented")
 }
 
-func (j *JobService) GetJobMetrics(context.Context, *jman.GetJobMetricsRequest) (*jman.GetJobMetricsResponse, error) {
+func (j *JobService) GetJobMetrics(context.Context, *jobpb.GetJobMetricsRequest) (*jobpb.GetJobMetricsResponse, error) {
 	panic("not implemented")
 }
 
-func (j *JobService) DescribePipelineOptions(context.Context, *jman.DescribePipelineOptionsRequest) (*jman.DescribePipelineOptionsResponse, error) {
+func (j *JobService) DescribePipelineOptions(context.Context, *jobpb.DescribePipelineOptionsRequest) (*jobpb.DescribePipelineOptionsResponse, error) {
 	panic("not implemented")
 }
 
@@ -81,20 +85,20 @@ func (j *JobService) Start() <-chan error {
 		return out
 	}
 	server := grpc.NewServer()
-	jman.RegisterJobServiceServer(server, j)
-	go func(server *grpc.Server, lis net.Listener){
+	jobpb.RegisterJobServiceServer(server, j)
+	go func(server *grpc.Server, lis net.Listener) {
 		if err := server.Serve(lis); err != nil {
 			out <- err
 		}
-	}(server,lis)
+	}(server, lis)
 	return out
 }
 
 // GetClient is a convienience function for testing
-func (j *JobService) getClient() (jman.JobServiceClient, error) {
+func (j *JobService) getClient() (jobpb.JobServiceClient, error) {
 	conn, err := grpc.Dial(j.Endpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
-	return jman.NewJobServiceClient(conn), nil
+	return jobpb.NewJobServiceClient(conn), nil
 }
