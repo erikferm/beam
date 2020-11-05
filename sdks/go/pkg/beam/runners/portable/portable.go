@@ -29,7 +29,7 @@ func init() {
 	beam.RegisterRunner("portable", Execute)
 }
 
-var (
+const (
 	defaultEndpoint = "localhost:4444"
 )
 
@@ -45,7 +45,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	// Start a JobServiceServer
-	js := &JobService{Endpoint: endpoint}
+	js := NewJobService(endpoint)
 	go js.Start()
 
 	return universal.Execute(ctx, p)
