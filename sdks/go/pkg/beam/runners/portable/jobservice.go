@@ -28,46 +28,48 @@ import (
 type BeamJob struct {
 	ID                     string
 	Pipeline               *pipeline.Pipeline
-	Options                []*pipeline.ArtifactInformation
+	ArtifactInfo           []*pipeline.ArtifactInformation
 	ArtifactStagingService *ArtifactStagingService
 }
 
 type JobService struct {
-	Endpoint string
-	Jobs     map[string]*BeamJob
+	Endpoint               string
+	Jobs                   map[string]*BeamJob
+	ArtifactStagingService *ArtifactStagingService
 }
 
 func NewJobService(endpoint string) *JobService {
 	return &JobService{
-		Endpoint: endpoint,
-		Jobs: make(map[string]*BeamJob),
+		Endpoint:               endpoint,
+		Jobs:                   make(map[string]*BeamJob),
+		ArtifactStagingService: NewArtifactStagingService(),
 	}
-
-
 }
 
 func (j *JobService) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jobpb.PrepareJobResponse, error) {
 	jobId := fmt.Sprintf("%s-%s", req.JobName, uuid.New())
-
-	var options []*pipeline.ArtifactInformation
-
-	for _, env := range req.Pipeline.Components.Environments {
-		options = append(options, env.Dependencies...)
-	}
-
 	stagingToken := jobId
+
+	// Register all the artifacts for the job
+	var artifactInfo []*pipeline.ArtifactInformation
+	for _, env := range req.Pipeline.Components.Environments {
+		artifactInfo = append(artifactInfo, env.Dependencies...)
+	}
+	j.ArtifactStagingService.RegisterArtifactsWithToken(stagingToken,artifactInfo)
+
+	// Create a new job
 	j.Jobs[jobId] = &BeamJob{
 		ID:                     jobId,
 		Pipeline:               req.Pipeline,
-		Options:                options,
-		ArtifactStagingService: NewArtifactStagingService(stagingToken),
+		ArtifactInfo:           artifactInfo,
+		ArtifactStagingService: j.ArtifactStagingService,
 	}
 
 	log.Debug(ctx, "Created new job: ", j.Jobs[jobId])
 
 	return &jobpb.PrepareJobResponse{
 		PreparationId:           jobId,
-		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: "localhost:4445"},
+		ArtifactStagingEndpoint: &pipeline.ApiServiceDescriptor{Url: j.ArtifactStagingService.Endpoint},
 		StagingSessionToken:     stagingToken,
 	}, nil
 }
